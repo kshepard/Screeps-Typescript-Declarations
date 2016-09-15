@@ -214,6 +214,7 @@ declare var RESOURCE_CATALYZED_ZYNTHIUM_ALKALIDE: string;
 declare var RESOURCE_CATALYZED_GHODIUM_ACID: string;
 declare var RESOURCE_CATALYZED_GHODIUM_ALKALIDE: string;
 declare var RESOURCES_ALL: string[];
+declare var SUBSCRIPTION_TOKEN: string;
 declare var CONTROLLER_LEVELS: {
     [level: number]: number;
 };
@@ -302,135 +303,15 @@ declare var NUKE_DAMAGE: {
     4: number;
 };
 declare var REACTIONS: {
-    H: {
-        O: string;
-        L: string;
-        K: string;
-        U: string;
-        Z: string;
-        G: string;
+    [reagent: string]: {
+        [reagent: string]: string;
     };
-    O: {
-        H: string;
-        L: string;
-        K: string;
-        U: string;
-        Z: string;
-        G: string;
-    };
-    Z: {
-        K: string;
-        H: string;
-        O: string;
-    };
-    L: {
-        U: string;
-        H: string;
-        O: string;
-    };
-    K: {
-        Z: string;
-        H: string;
-        O: string;
-    };
-    G: {
-        H: string;
-        O: string;
-    };
-    U: {
-        L: string;
-        H: string;
-        O: string;
-    };
-    OH: {
-        UH: string;
-        UO: string;
-        ZH: string;
-        ZO: string;
-        KH: string;
-        KO: string;
-        LH: string;
-        LO: string;
-        GH: string;
-        GO: string;
-    };
-    X: {
-        UH2O: string;
-        UHO2: string;
-        LH2O: string;
-        LHO2: string;
-        KH2O: string;
-        KHO2: string;
-        ZH2O: string;
-        ZHO2: string;
-        GH2O: string;
-        GHO2: string;
-    };
-    ZK: {
-        UL: string;
-    };
-    UL: {
-        ZK: string;
-    };
-    LH: {
-        OH: string;
-    };
-    ZH: {
-        OH: string;
-    };
-    GH: {
-        OH: string;
-    };
-    KH: {
-        OH: string;
-    };
-    UH: {
-        OH: string;
-    };
-    LO: {
-        OH: string;
-    };
-    ZO: {
-        OH: string;
-    };
-    KO: {
-        OH: string;
-    };
-    UO: {
-        OH: string;
-    };
-    GO: {
-        OH: string;
-    };
-    LH2O: {
-        X: string;
-    };
-    KH2O: {
-        X: string;
-    };
-    ZH2O: {
-        X: string;
-    };
-    UH2O: {
-        X: string;
-    };
-    GH2O: {
-        X: string;
-    };
-    LHO2: {
-        X: string;
-    };
-    UHO2: {
-        X: string;
-    };
-    KHO2: {
-        X: string;
-    };
-    ZHO2: {
-        X: string;
-    };
-    GHO2: {
-        X: string;
+};
+declare var BOOSTS: {
+    [part: string]: {
+        [boost: string]: {
+            [action: string]: number;
+        };
     };
 };
 declare var LOOK_CREEPS: string;
@@ -443,6 +324,8 @@ declare var LOOK_FLAGS: string;
 declare var LOOK_CONSTRUCTION_SITES: string;
 declare var LOOK_NUKES: string;
 declare var LOOK_TERRAIN: string;
+declare var ORDER_SELL: string;
+declare var ORDER_BUY: string;
 /**
  * A site of a structure which is currently under construction.
  */
@@ -817,7 +700,7 @@ interface Game {
      * @param id The unique identificator.
      * @returns an object instance or null if it cannot be found.
      */
-    getObjectById<T>(id: string): T;
+    getObjectById<T>(id: string): T | null;
     /**
      * Send a custom message at your profile email. This way, you can set up notifications to yourself on any occasion within the game. You can schedule up to 20 notifications during one game tick. Not available in the Simulation Room.
      * @param message Custom text which will be sent in the message. Maximum length is 1000 characters.
@@ -872,6 +755,7 @@ interface LookAtResultWithPos {
     x: number;
     y: number;
     type: string;
+    constructionSite?: ConstructionSite;
     creep?: Creep;
     terrain?: string;
     structure?: Structure;
@@ -879,6 +763,7 @@ interface LookAtResultWithPos {
     energy?: Resource;
     exit?: any;
     source?: Source;
+    mineral?: Mineral;
 }
 interface LookAtResult {
     type: string;
@@ -890,6 +775,7 @@ interface LookAtResult {
     source?: Source;
     structure?: Structure;
     terrain?: string;
+    mineral?: Mineral;
 }
 interface LookAtResultMatrix {
     [coord: number]: LookAtResultMatrix | LookAtResult[];
@@ -920,7 +806,7 @@ interface FindPathOpts {
      * @param costMatrix The current CostMatrix
      * @returns The new CostMatrix to use
      */
-    costCallBack?(roomName: string, costMatrix: CostMatrix): CostMatrix;
+    costCallback?(roomName: string, costMatrix: CostMatrix): CostMatrix;
     /**
      * An array of the room's objects or RoomPosition objects which should be treated as walkable tiles during the search. This option
      * cannot be used when the new PathFinder is enabled (use costCallback option instead).
@@ -1064,25 +950,60 @@ declare class GameMap {
 }
 /**
  * A global object representing the in-game market. You can use this object to track resource transactions to/from your
- * terminals, and your buy/sell orders (in development). The object is accessible via the singleton Game.market property.
+ * terminals, and your buy/sell orders. The object is accessible via the singleton Game.market property.
  */
 declare class Market {
+    /**
+     * Your current credits balance.
+     */
+    credits: number;
     /**
      * An array of the last 100 incoming transactions to your terminals
      */
     incomingTransactions: Transaction[];
     /**
+     * An object with your active and inactive buy/sell orders on the market.
+     */
+    orders: {
+        [key: string]: Order;
+    };
+    /**
      * An array of the last 100 outgoing transactions from your terminals
      */
     outgoingTransactions: Transaction[];
+    /**
+     * Estimate the energy transaction cost of StructureTerminal.send and Market.deal methods.
+     */
+    calcTransactionCost(amount: number, roomName1: string, roomName2: string): number;
+    /**
+     * Cancel a previously created order. The 5% fee is not returned.
+     */
+    cancelOrder(orderId: string): number;
+    /**
+     * Create a market order in your terminal. You will be charged price*amount*0.05 credits when the order is placed.
+     * The maximum orders count is 20 per player. You can create an order at any time with any amount,
+     * it will be automatically activated and deactivated depending on the resource/credits availability.
+     */
+    createOrder(type: string, resourceType: string, price: number, totalAmount: number, roomName?: string): number;
+    /**
+     * Execute a trade deal from your Terminal to another player's Terminal using the specified buy/sell order.
+     * Your Terminal will be charged energy units of transfer cost regardless of the order resource type.
+     * You can use Game.market.calcTransactionCost method to estimate it.
+     * When multiple players try to execute the same deal, the one with the shortest distance takes precedence.
+     */
+    deal(orderId: string, amount: number, targetRoomName?: string): number;
+    /**
+     * Get other players' orders currently active on the market.
+     */
+    getAllOrders(filter?: OrderFilter | ((o: Order) => boolean)): Order[];
 }
 interface Transaction {
     transactionId: string;
     time: number;
-    sender: {
+    sender?: {
         username: string;
     };
-    recipient: {
+    recipient?: {
         username: string;
     };
     resourceType: string;
@@ -1090,6 +1011,28 @@ interface Transaction {
     from: string;
     to: string;
     description: string;
+}
+interface Order {
+    id: string;
+    created: number;
+    active?: boolean;
+    type: string;
+    resourceType: string;
+    roomName?: string;
+    amount: number;
+    remainingAmount: number;
+    totalAmount?: number;
+    price: number;
+}
+interface OrderFilter {
+    id?: string;
+    created?: number;
+    type?: string;
+    resourceType?: string;
+    roomName?: string;
+    amount?: number;
+    remainingAmount?: number;
+    price?: number;
 }
 interface Memory {
     [name: string]: any;
@@ -1130,6 +1073,23 @@ interface Mineral extends RoomObject {
      * The remaining time after which the deposit will be refilled.
      */
     ticksToRegeneration: number;
+}
+/**
+ * A nuke landing position. This object cannot be removed or modified. You can find incoming nukes in the room using the FIND_NUKES constant.
+ */
+declare class Nuke extends RoomObject {
+    /**
+     * A unique object identificator. You can use Game.getObjectById method to retrieve an object instance by its id.
+     */
+    id: string;
+    /**
+     * The name of the room where this nuke has been launched from.
+     */
+    launchRoomName: string;
+    /**
+     * The remaining landing time.
+     */
+    timeToLand: number;
 }
 /**
  * Contains powerful methods for pathfinding in the game world. Support exists for custom navigation costs and paths which span multiple rooms.
@@ -1478,7 +1438,7 @@ declare class Room {
     /**
      * The Controller structure of this room, if present, otherwise undefined.
      */
-    controller: Controller;
+    controller: Controller | undefined;
     /**
      * Total amount of energy available in all spawns and extensions in the room.
      */
@@ -1503,15 +1463,15 @@ declare class Room {
     /**
      * The Storage structure of this room, if present, otherwise undefined.
      */
-    storage: StructureStorage;
+    storage: StructureStorage | undefined;
     /**
      * An object with survival game info if available
      */
-    survivalInfo: SurvivalGameInfo;
+    survivalInfo: SurvivalGameInfo | undefined;
     /**
      * The Terminal structure of this room, if present, otherwise undefined.
      */
-    terminal: Terminal;
+    terminal: Terminal | undefined;
     /**
      * Create new ConstructionSite at the specified location.
      * @param x The X position.
@@ -1555,7 +1515,7 @@ declare class Room {
      * @returns An array with the objects found.
      */
     find<T>(type: number, opts?: {
-        filter: any | string;
+        filter: Object | Function | string;
     }): T[];
     /**
      * Find the exit direction en route to another room.
@@ -1578,7 +1538,7 @@ declare class Room {
      * @param y The Y position.
      * @returns A RoomPosition object or null if it cannot be obtained.
      */
-    getPositionAt(x: number, y: number): RoomPosition;
+    getPositionAt(x: number, y: number): RoomPosition | null;
     /**
      * Get the list of objects at the specified room position.
      * @param x The X position.
@@ -1858,6 +1818,10 @@ declare class StructureController extends OwnedStructure {
      */
     ticksToDowngrade: number;
     /**
+     * The amount of game ticks while this controller cannot be upgraded due to attack.
+     */
+    upgradeBlocked: number;
+    /**
      * Make your claimed controller neutral again.
      */
     unclaim(): number;
@@ -1914,7 +1878,7 @@ declare class StructureKeeperLair extends OwnedStructure {
     /**
      * Time to spawning of the next Source Keeper.
      */
-    ticksToSpawn: number;
+    ticksToSpawn: number | undefined;
 }
 /**
  * Provides visibility into a distant room from your script.
@@ -2087,6 +2051,10 @@ declare class StructureExtractor extends OwnedStructure {
  * Produces mineral compounds from base minerals and boosts creeps.
  */
 declare class StructureLab extends OwnedStructure {
+    /**
+     * The amount of game ticks the lab has to wait until the next reaction is possible.
+     */
+    cooldown: number;
     /**
      * The amount of energy containing in the lab. Energy is used for boosting creeps.
      */
