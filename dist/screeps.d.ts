@@ -1242,9 +1242,11 @@ interface PathFinderOpts {
      * single room and in a single tick you may consider caching your CostMatrix to speed up your code. Please read the
      * CostMatrix documentation below for more information on CostMatrix.
      *
+     * Return undefined to use the default CostMatrix
+     *
      * @param roomName
      */
-    roomCallback?(roomName: string): boolean | CostMatrix;
+    roomCallback?(roomName: string): boolean | undefined | CostMatrix;
 }
 /**
  * Container for custom navigation cost data.

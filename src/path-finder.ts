@@ -27,7 +27,7 @@ interface PathFinderResult {
 }
 
 /**
- * Contains powerful methods for pathfinding in the game world. Support exists for custom navigation costs and paths which span multiple rooms. 
+ * Contains powerful methods for pathfinding in the game world. Support exists for custom navigation costs and paths which span multiple rooms.
  * Additionally PathFinder can search for paths through rooms you can't see, although you won't be able to detect any dynamic obstacles like creeps or buildings.
  */
 interface PathFinder {
@@ -105,9 +105,11 @@ interface PathFinderOpts {
      * single room and in a single tick you may consider caching your CostMatrix to speed up your code. Please read the
      * CostMatrix documentation below for more information on CostMatrix.
      *
+     * Return undefined to use the default CostMatrix
+     *
      * @param roomName
      */
-    roomCallback?(roomName: string): boolean | CostMatrix;
+    roomCallback?(roomName: string): boolean | undefined | CostMatrix;
 }
 
 /**
